@@ -1,0 +1,99 @@
+For Lab 10_2
+Changes made:
+Added GL_REPEAT wrapping mode: Explicitly set GL_TEXTURE_WRAP_S and GL_TEXTURE_WRAP_T to GL_REPEAT to ensure the texture tiles properly.
+Changed texture coordinates from 1.0 to 2.0: All texture coordinates that were 1.0 are now 2.0, creating a 2x2 repeat pattern on each face.
+
+# Set texture wrapping to GL_REPEAT for tiling
+glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT)
+glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT)
+
+# Front face (Z+)
+glNormal3f(0.0, 0.0, 1.0)
+glTexCoord2f(0.0, 0.0); glVertex3f(-s, -s,  s)
+glTexCoord2f(2.0, 0.0); glVertex3f( s, -s,  s)
+glTexCoord2f(2.0, 2.0); glVertex3f( s,  s,  s)
+glTexCoord2f(0.0, 2.0); glVertex3f(-s,  s,  s)
+
+# Back face (Z-)
+glNormal3f(0.0, 0.0, -1.0)
+glTexCoord2f(2.0, 0.0); glVertex3f(-s, -s, -s)
+glTexCoord2f(2.0, 2.0); glVertex3f(-s,  s, -s)
+glTexCoord2f(0.0, 2.0); glVertex3f( s,  s, -s)
+glTexCoord2f(0.0, 0.0); glVertex3f( s, -s, -s)
+
+# Top face (Y+)
+glNormal3f(0.0, 1.0, 0.0)
+glTexCoord2f(0.0, 2.0); glVertex3f(-s,  s, -s)
+glTexCoord2f(0.0, 0.0); glVertex3f(-s,  s,  s)
+glTexCoord2f(2.0, 0.0); glVertex3f( s,  s,  s)
+glTexCoord2f(2.0, 2.0); glVertex3f( s,  s, -s)
+
+# Bottom face (Y-)
+glNormal3f(0.0, -1.0, 0.0)
+glTexCoord2f(2.0, 2.0); glVertex3f(-s, -s, -s)
+glTexCoord2f(0.0, 2.0); glVertex3f( s, -s, -s)
+glTexCoord2f(0.0, 0.0); glVertex3f( s, -s,  s)
+glTexCoord2f(2.0, 0.0); glVertex3f(-s, -s,  s)
+
+# Right face (X+)
+glNormal3f(1.0, 0.0, 0.0)
+glTexCoord2f(2.0, 0.0); glVertex3f( s, -s, -s)
+glTexCoord2f(2.0, 2.0); glVertex3f( s,  s, -s)
+glTexCoord2f(0.0, 2.0); glVertex3f( s,  s,  s)
+glTexCoord2f(0.0, 0.0); glVertex3f( s, -s,  s)
+
+# Left face (X-)
+glNormal3f(-1.0, 0.0, 0.0)
+glTexCoord2f(0.0, 0.0); glVertex3f(-s, -s, -s)
+glTexCoord2f(2.0, 0.0); glVertex3f(-s, -s,  s)
+glTexCoord2f(2.0, 2.0); glVertex3f(-s,  s,  s)
+glTexCoord2f(0.0, 2.0); glVertex3f(-s,  s, -s)
+
+glEnd()
+
+glPopMatrix()
+
+glBindTexture(GL_TEXTURE_2D, 0)
+glDisable(GL_TEXTURE_2D)
+glDisable(GL_BLEND)
+
+=============================================================
+For Lab 10_3:
+Changes made:
+1. Added missing imports at the top of the file:
+import os
+import math
+import pygame
+
+2. Fixed the normalize function:
+def normalize(v):
+    l = math.sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2])
+    if l == 0:
+        return [0.0, 0.0, 0.0]
+    return [v[0]/l, v[1]/l, v[2]/l]
+
+3. Fixed the load_texture function:
+def load_texture(path: str, use_alpha=False) -> int:
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"Texture not found: {path}")  # Added error handling
+    
+4. Changed material color to YELLOW in draw_textured_cube:
+    glMaterialfv(GL_FRONT, GL_AMBIENT_AND_DIFFUSE, (1.0, 1.0, 0.0, 1.0))  # Changed from (1.0, 1.0, 1.0, 1.0)
+    glMaterialfv(GL_FRONT, GL_SPECULAR, (0.3, 0.3, 0.3, 1.0))
+    glMaterialf(GL_FRONT, GL_SHININESS, 20.0)
+=============================================================
+For Lab 10_4:
+Changes made:
+1. In setup_scene() function:
+glLightfv(GL_LIGHT0, GL_AMBIENT,  (0.15, 0.15, 0.15, 1.0))  
+glLightfv(GL_LIGHT0, GL_SPECULAR, (1.5, 1.5, 1.5, 1.0)) 
+
+2.  In draw_textured_cube() function
+glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, (0.8, 0.8, 0.8, 1.0))  
+glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, (1.0, 1.0, 1.0, 1.0)) 
+glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, 128.0) 
+glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, (0.0, 0.0, 0.0, 1.0)) 
+
+
+
+
