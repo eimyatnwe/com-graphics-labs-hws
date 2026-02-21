@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+        font-family: Arial, sans-serif;
+      }
+      canvas {
+        display: block;
+      }
+      #hud {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        color: white;
+        font-size: 24px;
+        z-index: 10;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+      }
+      #gameOver {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: red;
+        font-size: 48px;
+        font-weight: bold;
+        display: none;
+        text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.9);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="hud">
+      <div id="lives">Lives: 3</div>
+      <div id="score">Score: 0</div>
+    </div>
+    <div id="gameOver">GAME OVER</div>
+    <script>
+      let scene, camera, renderer;
+      let spaceship;
+      let moveLeft = false,
+        moveRight = false;
+      let shoot = false;
+      let bullets = [];
+      let asteroids = [];
+      let lives = 3;
+      let score = 0;
+      let gameOver = false;
+      let isFocused = true;
+      let lastShootTime = 0;
+      const shootCooldown = 200;
+      let isInvulnerable = false;
+      let flashTimer = 0; 
+
+      function init() {
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x000033);
+        
+        camera = new THREE.PerspectiveCamera(
+          75,
+          window.innerWidth / window.innerHeight,
+          0.1,
+          1000,
+        );
+        
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.body.appendChild(renderer.domElement);
+
+        let ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+        scene.add(ambientLight);
+
+        let groundGeometry = new THREE.PlaneGeometry(20, 20);
+        let groundMaterial = new THREE.MeshStandardMaterial({ 
+          color: 0x222222,
+          roughness: 0.8,
+          metalness: 0.2
+        });
+        let ground = new THREE.Mesh(groundGeometry, groundMaterial);
+        ground.rotation.x = -Math.PI / 2;
+        ground.position.y = -6;
+        ground.receiveShadow = true;
+        scene.add(ground);
+
+        // Create spaceship
+        let geometry = new THREE.ConeGeometry(0.5, 1, 8);
+        let material = new THREE.MeshStandardMaterial({ 
+          color: 0x00ff00,
+          emissive: 0x00ff00,
+          emissiveIntensity: 0.3
+        });
+        spaceship = new THREE.Mesh(geometry, material);
+        spaceship.position.set(0, -4, 0);
+        spaceship.castShadow = true;
+        spaceship.receiveShadow = true;
+        scene.add(spaceship);
+        
+        camera.position.z = 5;
+        
+        spawnAsteroids();
+        animate();
+      }
+
+      function animate() {
+        requestAnimationFrame(animate);
+        if (!isFocused || gameOver) return;
+
+        // Move spaceship
+        if (moveLeft && spaceship.position.x > -5) {
+          spaceship.position.x -= 0.1;
+        }
+        if (moveRight && spaceship.position.x < 5) {
+          spaceship.position.x += 0.1;
+        }
+
+        // Shoot bullets with cooldown
+        if (shoot) {
+          let currentTime = Date.now();
+          if (currentTime - lastShootTime > shootCooldown) {
+            shootBullet();
+            lastShootTime = currentTime;
+          }
+        }
+
+        // Update bullets
+        bullets.forEach((bullet, index) => {
+          bullet.position.y += 0.2;
+          if (bullet.position.y > 6) {
+            scene.remove(bullet);
+            bullets.splice(index, 1);
+          }
+        });
+
+        // Update asteroids
+        asteroids.forEach((asteroid, index) => {
+          asteroid.position.y -= 0.05;
+          asteroid.rotation.x += 0.02;
+          asteroid.rotation.y += 0.02;
+
+          // Check collision with spaceship
+          if (asteroid.position.distanceTo(spaceship.position) < 0.8) {
+            scene.remove(asteroid);
+            asteroids.splice(index, 1);
+            loseLife();
+          }
+
+          // Remove if off screen
+          if (asteroid.position.y < -6) {
+            scene.remove(asteroid);
+            asteroids.splice(index, 1);
+          }
+        });
+
+  // Check bullet-asteroid collisions
+        bullets.forEach((bullet, bulletIndex) => {
+          asteroids.forEach((asteroid, asteroidIndex) => {
+            if (bullet.position.distanceTo(asteroid.position) < 0.6) {
+              scene.remove(bullet);
+              scene.remove(asteroid);
+              bullets.splice(bulletIndex, 1);
+              asteroids.splice(asteroidIndex, 1);
+              score += 10;
+              updateScore();
+            }
+          });
+        });
+
+        renderer.render(scene, camera);
+      }
+
+      function shootBullet() {
+        let bulletGeometry = new THREE.CylinderGeometry(0.1, 0.1, 1, 8);
+        let bulletMaterial = new THREE.MeshStandardMaterial({ 
+          color: 0xffff00,
+          emissive: 0xffff00,
+          emissiveIntensity: 0.5
+        });
+        let bullet = new THREE.Mesh(bulletGeometry, bulletMaterial);
+        bullet.position.set(spaceship.position.x, spaceship.position.y + 0.5, 0);
+        bullet.castShadow = true;
+        scene.add(bullet);
+        bullets.push(bullet);
+      }
+
+      function spawnAsteroids() {
+        setInterval(() => {
+          if (gameOver) return;
+          
+          let asteroidGeometry = new THREE.SphereGeometry(0.5, 8, 8);
+          let asteroidMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0xff0000,
+            roughness: 0.7,
+            metalness: 0.3
+          });
+          let asteroid = new THREE.Mesh(asteroidGeometry, asteroidMaterial);
+          asteroid.position.set((Math.random() - 0.5) * 10, 5, 0);
+          asteroid.castShadow = true;
+          asteroid.receiveShadow = true;
+          scene.add(asteroid);
+          asteroids.push(asteroid);
+        }, 1000);
+      }
+
+      function loseLife() {
+        lives--;
+        updateLives();
+    
+        
+        // Reset color and invulnerability after 1 second
+        setTimeout(() => {
+          spaceship.material.color.setHex(0x00ff00);
+          spaceship.material.emissive.setHex(0x00ff00);
+          spaceship.visible = true;
+          isInvulnerable = false;
+        }, 1000);
+        
+        if (lives <= 0) {
+          endGame();
+        }
+      }
+
+      function updateLives() {
+        document.getElementById("lives").textContent = "Lives: " + lives;
+      }
+
+      function updateScore() {
+        document.getElementById("score").textContent = "Score: " + score;
+      }
+
+      function endGame() {
+        gameOver = true;
+        document.getElementById("gameOver").style.display = "block";
+      }     
+      window.addEventListener("keydown", (event) => {
+        if (event.key === "ArrowLeft") moveLeft = true;
+        if (event.key === "ArrowRight") moveRight = true;
+        if (event.key === " ") {
+          shoot = true;
+          event.preventDefault(); 
+        }
+      });
+
+      window.addEventListener("keyup", (event) => {
+        if (event.key === "ArrowLeft") moveLeft = false;
+        if (event.key === "ArrowRight") moveRight = false;
+        if (event.key === " ") shoot = false;
+      });
+
+      window.addEventListener("blur", () => {
+        isFocused = false;
+      });
+
+      window.addEventListener("focus", () => {
+        isFocused = true;
+      });
+
+      init();
+    </script>
+  </body>
+</html>
